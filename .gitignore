@@ -1,1 +1,8 @@
 node_modules
+backups/
+*.db-wal
+*.db-shm
+*.bak
+
+# 个人书签数据，不入库（新克隆由应用自动初始化空库）
+sqlite.db
