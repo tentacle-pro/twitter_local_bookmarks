@@ -3,15 +3,23 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "bin": {
+    "tb-cli": "./bin/cli.js",
+    "tb-agent": "./bin/tb-agent"
+  },
   "scripts": {
     "build": "remix vite:build",
     "dev": "remix vite:dev '--host' '127.0.0.1'",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "start": "remix-serve ./build/server/index.js",
     "typecheck": "tsc",
-    "clean": "rm -rf ./node_modules ./build"
+    "clean": "rm -rf ./node_modules ./build",
+    "tb": "node ./bin/cli.js",
+    "agent": "node ./bin/tb-agent",
+    "mcp": "node ./mcp/server.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@radix-ui/react-slot": "^1.1.2",
     "@remix-run/node": "^2.15.3",
     "@remix-run/react": "^2.15.3",

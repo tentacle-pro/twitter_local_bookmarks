@@ -1,0 +1,148 @@
+#!/usr/bin/env node
+
+import fs from "fs";
+import path from "path";
+import { spawnSync } from "child_process";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const REPO_ROOT = path.resolve(__dirname, "..");
+const CLI_PATH = path.join(__dirname, "cli.js");
+
+const args = process.argv.slice(2);
+
+// 1. 无参数时输出用法并返回退出码 2
+if (args.length === 0) {
+  process.stderr.write(`用法: tb-agent <command> [options]
+
+命令:
+  search <query>          全文检索推特书签
+    --limit <n>           限制返回条数 (默认 10)
+    --full                返回推文的全部原始字段
+    --json                以纯 JSON 格式输出
+
+  import <filePath>       导入书签 JSON 文件
+    --json                以 JSON 格式输出结果
+
+  delete <tweetId>        根据推文 ID 从本地库中删除书签
+    --json                以 JSON 格式输出结果
+
+  stats                   查看书签库统计信息
+    --json                以 JSON 格式输出结果
+
+退出码:
+  0 成功
+  2 用法错误
+  3 快照/复制失败
+  4 无写权限
+`);
+  process.exit(2);
+}
+
+const command = args[0];
+
+// 2. 检测仓库根目录写权限（避免 fs.access/W_OK 在沙箱环境的误判）
+let isWritable = false;
+if (process.env.TB_FORCE_SNAPSHOT === "1") {
+  isWritable = false;
+} else {
+  const probeFile = path.join(
+    REPO_ROOT,
+    `.probe-write-${Date.now()}-${process.pid}-${Math.random().toString(36).slice(2)}`
+  );
+  try {
+    fs.writeFileSync(probeFile, "");
+    fs.unlinkSync(probeFile);
+    isWritable = true;
+  } catch {
+    isWritable = false;
+  }
+}
+
+// 3. 区分读写命令
+const writeCommands = ["import", "delete"];
+let targetDbPath = path.join(REPO_ROOT, "sqlite.db");
+
+if (!isWritable) {
+  // 写操作在无写权限环境下必须拒绝，并在 stderr 打印可复制的手动命令，退出码 4
+  if (writeCommands.includes(command)) {
+    const formattedArgs = args
+      .map((arg) => (/\s|"/.test(arg) ? JSON.stringify(arg) : arg))
+      .join(" ");
+    process.stderr.write(
+      `错误: 当前环境对仓库根目录无写权限，无法执行写入操作 (${command})。\n` +
+      `请在具备写权限的环境中手动执行以下命令:\n` +
+      `DB_PATH=${targetDbPath} node ${CLI_PATH} ${formattedArgs}\n`
+    );
+    process.exit(4);
+  }
+
+  // 读操作（search/stats）：使用只读快照
+  const tmpBase = process.env.TMPDIR || "/tmp";
+  const snapshotDir = path.join(tmpBase, "twitter-bookmarks-ro");
+  const snapshotDb = path.join(snapshotDir, "sqlite.db");
+  const sourceDb = targetDbPath;
+  const sourceWal = path.join(REPO_ROOT, "sqlite.db-wal");
+
+  try {
+    if (!fs.existsSync(sourceDb)) {
+      process.stderr.write(`错误: 源数据库文件不存在: ${sourceDb}\n`);
+      process.exit(3);
+    }
+
+    let needRefresh = false;
+    if (!fs.existsSync(snapshotDb)) {
+      needRefresh = true;
+    } else {
+      const srcStat = fs.statSync(sourceDb);
+      const snapStat = fs.statSync(snapshotDb);
+      if (srcStat.mtimeMs > snapStat.mtimeMs) {
+        needRefresh = true;
+      }
+    }
+
+    if (needRefresh) {
+      fs.mkdirSync(snapshotDir, { recursive: true });
+
+      // 刷新前清理旧的 -wal 和 -shm
+      const oldWal = path.join(snapshotDir, "sqlite.db-wal");
+      const oldShm = path.join(snapshotDir, "sqlite.db-shm");
+      if (fs.existsSync(oldWal)) fs.rmSync(oldWal, { force: true });
+      if (fs.existsSync(oldShm)) fs.rmSync(oldShm, { force: true });
+
+      // 复制到 sqlite.db.tmp-<pid> 后 rename，避免并发读到半个文件
+      const tmpDb = path.join(snapshotDir, `sqlite.db.tmp-${process.pid}`);
+      fs.copyFileSync(sourceDb, tmpDb);
+      fs.renameSync(tmpDb, snapshotDb);
+
+      // 若源存在 sqlite.db-wal，一并复制
+      if (fs.existsSync(sourceWal)) {
+        const tmpWal = path.join(snapshotDir, `sqlite.db-wal.tmp-${process.pid}`);
+        fs.copyFileSync(sourceWal, tmpWal);
+        fs.renameSync(tmpWal, oldWal);
+      }
+    }
+
+    targetDbPath = snapshotDb;
+  } catch (err) {
+    process.stderr.write(`错误: 快照创建或刷新失败: ${err.message}\n`);
+    process.exit(3);
+  }
+}
+
+// 4. 执行 CLI 子进程透传参数
+const child = spawnSync(process.execPath, [CLI_PATH, ...args], {
+  env: {
+    ...process.env,
+    DB_PATH: targetDbPath,
+  },
+  stdio: ["inherit", "inherit", "inherit"],
+});
+
+if (child.error) {
+  process.stderr.write(`错误: 执行 CLI 失败: ${child.error.message}\n`);
+  process.exit(1);
+}
+
+process.exit(child.status ?? 0);
