@@ -111,9 +111,12 @@ async function main() {
         const onProgress = flags.json ? undefined : (curr, total) => {
           process.stdout.write(`\r⏳ 正在写入推文数据: ${curr} / ${total} (${Math.round((curr / total) * 100)}%)...`);
         };
-        const res = importBookmarks(filePath, { onProgress });
+        const res = await importBookmarks(filePath, { onProgress });
         if (!flags.json) {
           console.log(`\n✅ 成功导入 ${res.count} 条书签并已更新全文检索索引！`);
+          if (res.backup) {
+            console.log(`📦 数据库已自动备份至: ${res.backup}`);
+          }
         } else {
           console.log(JSON.stringify(res, null, 2));
         }

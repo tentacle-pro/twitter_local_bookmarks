@@ -143,7 +143,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!filePath) {
           throw new Error("filePath 不能为空");
         }
-        const result = importBookmarks(filePath);
+        const result = await importBookmarks(filePath);
         return {
           content: [
             {
