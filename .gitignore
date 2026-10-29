@@ -6,3 +6,6 @@ backups/
 
 # 个人书签数据，不入库（新克隆由应用自动初始化空库）
 sqlite.db
+
+# 待导入的json文件
+NEED_IMPORT/

@@ -7,6 +7,7 @@ import { renderToPipeableStream } from "react-dom/server";
 import * as React from "react";
 import { useState, useRef, useEffect, Fragment } from "react";
 import path from "path";
+import fs from "fs";
 import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
 import { clsx } from "clsx";
@@ -119,6 +120,10 @@ const links = () => [
   {
     rel: "stylesheet",
     href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
+  },
+  {
+    rel: "icon",
+    href: "https://fav.farm/%F0%9F%91%99"
   }
 ];
 function Layout({ children }) {
@@ -686,6 +691,9 @@ async function loader({ request }) {
   }
   try {
     const dbPath = path.resolve("./sqlite.db");
+    if (!fs.existsSync(dbPath)) {
+      fs.writeFileSync(dbPath, "");
+    }
     const { createRequire } = await import("module");
     const require2 = createRequire(import.meta.url);
     const Database = require2("better-sqlite3");
@@ -699,6 +707,30 @@ async function loader({ request }) {
     }
     const dictPath = path.join(extPath, "dict");
     db.prepare("SELECT jieba_dict(?)").run(dictPath);
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS twitter_bookmarks (
+        id TEXT PRIMARY KEY,
+        created_at TEXT,
+        full_text TEXT,
+        media TEXT,
+        screen_name TEXT,
+        name TEXT,
+        profile_image_url TEXT,
+        in_reply_to TEXT,
+        retweeted_status TEXT,
+        quoted_status TEXT,
+        favorite_count INTEGER,
+        retweet_count INTEGER,
+        bookmark_count INTEGER,
+        quote_count INTEGER,
+        reply_count INTEGER,
+        views_count INTEGER,
+        favorited INTEGER,
+        retweeted INTEGER,
+        bookmarked INTEGER,
+        url TEXT
+      );
+    `);
     db.exec(`
       CREATE VIRTUAL TABLE IF NOT EXISTS twitter_bookmarks_fts 
       USING fts5(id, full_text, screen_name, name, tokenize = 'simple');
@@ -983,7 +1015,7 @@ const route1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProper
   default: Index,
   loader
 }, Symbol.toStringTag, { value: "Module" }));
-const serverManifest = { "entry": { "module": "/assets/entry.client-BFUHhWbe.js", "imports": ["/assets/components-DUmxP91T.js"], "css": [] }, "routes": { "root": { "id": "root", "parentId": void 0, "path": "", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/root-ChiZtCtX.js", "imports": ["/assets/components-DUmxP91T.js"], "css": ["/assets/root-CWGzOS0i.css"] }, "routes/_index": { "id": "routes/_index", "parentId": "root", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/_index-BNT3nnFR.js", "imports": ["/assets/components-DUmxP91T.js"], "css": [] } }, "url": "/assets/manifest-b7f5f07f.js", "version": "b7f5f07f" };
+const serverManifest = { "entry": { "module": "/assets/entry.client-CFpIlvmY.js", "imports": ["/assets/components-BDSn7aqC.js"], "css": [] }, "routes": { "root": { "id": "root", "parentId": void 0, "path": "", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/root-f20js4sM.js", "imports": ["/assets/components-BDSn7aqC.js"], "css": ["/assets/root-CWGzOS0i.css"] }, "routes/_index": { "id": "routes/_index", "parentId": "root", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/_index-Q8mBy9eP.js", "imports": ["/assets/components-BDSn7aqC.js"], "css": [] } }, "url": "/assets/manifest-188ce0a9.js", "version": "188ce0a9" };
 const mode = "production";
 const assetsBuildDirectory = "build/client";
 const basename = "/";
