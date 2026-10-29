@@ -42,27 +42,30 @@
 
 ---
 
-### 方式 B：Agent Skill（基于 CLI）
+### 方式 B：Agent Skill + `tb-agent`
 
-适用于原生支持 Agent Skills 规范的 AI Coding Agent（如 Antigravity、Claude Code、Cursor Rules 等）。
+适用于原生支持 Agent Skills 规范的 AI Coding Agent，以及任何能执行 shell 的宿主。
 
-技能定义文件位于：`skills/twitter-bookmarks/SKILL.md`。
-
-Agent 可直接通过 CLI 脚本与数据库交互：
+本仓库不再维护第二份技能定义——权威版本是 Obsidian vault 里的
+`.agents/skills/twitter-bookmarks/SKILL.md`（沙箱感知，直接指向 `bin/tb-agent`）。
+仓库这边只保留可执行入口，避免两份文档漂移：
 
 ```bash
 # 全文检索推文（--json 专门优化了数据体积，去除冗余嵌套）
-node ./bin/cli.js search "Agent" --limit 5 --json
+node ./bin/tb-agent search "Agent" --limit 5 --json
 
 # 查看书签库状态
-node ./bin/cli.js stats --json
+node ./bin/tb-agent stats --json
 
-# 导入书签文件
-node ./bin/cli.js import /path/to/bookmarks.json --json
+# 导入书签文件（需要库目录写权限；沙箱内会返回退出码 4 并给出手动命令）
+node ./bin/tb-agent import /path/to/bookmarks.json --json
 
-# 删除指定 ID 的书签
-node ./bin/cli.js delete 1911790193885032829 --json
+# 删除指定 ID 的书签（同上，需要写权限）
+node ./bin/tb-agent delete 1911790193885032829 --json
 ```
+
+> 为什么不是 `bin/cli.js`：见下一节的沙箱说明。`bin/cli.js` 仍是底层实现，
+> `tb-agent` 只是替它选库路径、加写入保护。
 
 ---
 
