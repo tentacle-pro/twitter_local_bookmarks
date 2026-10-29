@@ -1,4 +1,5 @@
 node_modules
+build
 backups/
 *.db-wal
 *.db-shm
